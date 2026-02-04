@@ -2,176 +2,179 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Arena PVP 3D - Mobile</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noite dos Mistérios</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; }
-        canvas { display: block; }
-        
-        /* Interface Mobile */
-        #ui {
-            position: absolute; top: 10px; left: 10px; color: white;
-            pointer-events: none; text-shadow: 2px 2px 4px #000;
+        :root {
+            --dark-blue: #0a0e14;
+            --gold: #d4af37;
+            --blood: #880808;
         }
-        #joystick-container {
-            position: absolute; bottom: 40px; left: 40px;
-            width: 120px; height: 120px; background: rgba(255,255,255,0.2);
-            border-radius: 50%; touch-action: none;
+        body {
+            background-color: var(--dark-blue);
+            color: white;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
         }
-        #joystick-knob {
-            position: absolute; top: 35px; left: 35px;
-            width: 50px; height: 50px; background: #fff; border-radius: 50%;
+        #tela-inicial, #tela-jogo {
+            width: 100%;
+            max-width: 500px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
         }
-        #attack-btn {
-            position: absolute; bottom: 50px; right: 40px;
-            width: 80px; height: 80px; background: rgba(255,0,0,0.6);
-            border-radius: 50%; display: flex; align-items: center;
-            justify-content: center; color: white; font-weight: bold;
-            user-select: none; -webkit-tap-highlight-color: transparent;
+        h1 { color: var(--gold); text-shadow: 2px 2px 5px black; }
+        .btn {
+            background: var(--gold);
+            border: none;
+            padding: 15px 30px;
+            font-weight: bold;
+            cursor: pointer;
+            border-radius: 5px;
+            margin: 10px;
         }
+        /* Roleta */
+        #roleta-container { display: none; margin: 20px; }
+        #roleta {
+            width: 200px; height: 200px;
+            border: 5px solid var(--gold);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 3s cubic-bezier(0.1, 0, 0.1, 1);
+            background: conic-gradient(red 0% 16%, blue 16% 32%, green 32% 48%, purple 48% 64%, orange 64% 80%, gray 80% 100%);
+        }
+        /* Chat e Log */
+        #chat {
+            width: 90%; height: 300px;
+            background: rgba(255,255,255,0.1);
+            margin: 10px; padding: 10px;
+            overflow-y: auto; text-align: left;
+            border-radius: 10px; font-size: 14px;
+        }
+        .status-bar { font-size: 12px; color: var(--gold); margin-bottom: 5px; }
+        .escondido { display: none !important; }
     </style>
 </head>
 <body>
 
-    <div id="ui">
-        <div>Sua Vida: <span id="player-hp">100</span></div>
-        <div>Inimigo: <span id="ai-hp">100</span></div>
+    <div id="tela-inicial">
+        <h1>Noite dos Mistérios</h1>
+        <p>A cidade dorme... mas quem acordará?</p>
+        <button class="btn" onclick="iniciarSorteio()">INICIAR RODADA</button>
     </div>
 
-    <div id="joystick-container">
-        <div id="joystick-knob"></div>
+    <div id="roleta-container">
+        <h2>Sorteando seu papel...</h2>
+        <div id="roleta">?</div>
+        <h3 id="papel-sorteado"></h3>
+        <button id="btn-comecar-cidade" class="btn escondido" onclick="entrarNaCidade()">ENTRAR NA CIDADE</button>
     </div>
 
-    <div id="attack-btn">ATACAR</div>
+    <div id="tela-jogo" class="escondido">
+        <div class="status-bar">
+            Jogadores: <span id="count-jogadores">18</span> | 
+            Mortes: <span id="count-mortes">0</span> |
+            Papel: <b id="meu-papel-display"></b>
+        </div>
+        <div id="chat"></div>
+        <input type="text" id="input-chat" placeholder="Faça uma pergunta..." style="width: 80%; padding: 10px;">
+        <button class="btn" onclick="enviarMensagem()">Enviar</button>
+        <div id="acoes-bruxa" class="escondido">
+            <button class="btn" style="background:purple" onclick="usarPocao()">Usar Poção Mágica</button>
+        </div>
+    </div>
 
-    <script type="importmap">
-        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
-    </script>
+    <script>
+        const nomes = ["Arthur", "Beatriz", "Caio", "Diana", "Erik", "Flora", "Gustavo", "Helena", "Igor", "Julia", "Kevin", "Lara", "Murilo", "Nina", "Otto", "Paula", "Raul"];
+        const papeis = ["Bruxa", "Assassino", "Xerife", "Médico", "Lobisomem", "Cidadão"];
+        let meuPapel = "";
+        let mortes = 0;
+        let jogadoresVivos = 18;
 
-    <script type="module">
-        import * as THREE from 'three';
-
-        // --- Configuração Básica ---
-        const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x222222);
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer({ antialias: true });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
-
-        // Luzes
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 10, 7.5);
-        scene.add(light);
-        scene.add(new THREE.AmbientLight(0x404040));
-
-        // Chão
-        const grid = new THREE.GridHelper(20, 20);
-        scene.add(grid);
-
-        // --- Personagens ---
-        function createBox(color) {
-            const geo = new THREE.BoxGeometry(1, 1, 1);
-            const mat = new THREE.MeshStandardMaterial({ color });
-            return new THREE.Mesh(geo, mat);
+        function iniciarSorteio() {
+            document.getElementById('tela-inicial').classList.add('escondido');
+            document.getElementById('roleta-container').style.display = 'block';
+            
+            let r = document.getElementById('roleta');
+            r.style.transform = "rotate(1080deg)";
+            
+            setTimeout(() => {
+                meuPapel = papeis[Math.floor(Math.random() * papeis.length)];
+                document.getElementById('papel-sorteado').innerText = "Você é: " + meuPapel;
+                document.getElementById('btn-comecar-cidade').classList.remove('escondido');
+            }, 3000);
         }
 
-        const player = createBox(0x00aaff);
-        player.position.y = 0.5;
-        scene.add(player);
-
-        const ai = createBox(0xff3300);
-        ai.position.set(5, 0.5, 5);
-        scene.add(ai);
-
-        camera.position.set(0, 10, 10);
-        camera.lookAt(player.position);
-
-        // --- Lógica de Jogo ---
-        let playerHp = 100, aiHp = 100;
-        let moveInput = { x: 0, y: 0 };
-        let isAttacking = false;
-
-        // --- Controles Mobile (Joystick) ---
-        const knob = document.getElementById('joystick-knob');
-        const container = document.getElementById('joystick-container');
-        
-        container.addEventListener('touchmove', (e) => {
-            const touch = e.touches[0];
-            const rect = container.getBoundingClientRect();
-            const centerX = rect.left + rect.width / 2;
-            const centerY = rect.top + rect.height / 2;
+        function entrarNaCidade() {
+            document.getElementById('roleta-container').classList.add('escondido');
+            document.getElementById('tela-jogo').classList.remove('escondido');
+            document.getElementById('meu-papel-display').innerText = meuPapel;
             
-            let dx = touch.clientX - centerX;
-            let dy = touch.clientY - centerY;
-            const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
-            const angle = Math.atan2(dy, dx);
-            
-            knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
-            
-            moveInput.x = (Math.cos(angle) * dist) / 50;
-            moveInput.y = (Math.sin(angle) * dist) / 50;
-        });
+            adicionarMensagem("Sistema", "A partida começou com 18 jogadores.");
+            if(meuPapel === "Bruxa") {
+                adicionarMensagem("Mestre", "Bruxa, você quer ser do BEM ou do MAL? (Ação automática simulada)");
+            }
+            simularTurnoBots();
+        }
 
-        container.addEventListener('touchend', () => {
-            knob.style.transform = `translate(0,0)`;
-            moveInput = { x: 0, y: 0 };
-        });
+        function adicionarMensagem(autor, texto) {
+            let chat = document.getElementById('chat');
+            chat.innerHTML += `<p><strong>${autor}:</strong> ${texto}</p>`;
+            chat.scrollTop = chat.scrollHeight;
+        }
 
-        document.getElementById('attack-btn').addEventListener('touchstart', () => {
-            isAttacking = true;
-            player.scale.set(1.2, 1.2, 1.2); // Feedback visual
-            setTimeout(() => { 
-                isAttacking = false; 
-                player.scale.set(1,1,1);
-            }, 200);
-        });
+        function enviarMensagem() {
+            let input = document.getElementById('input-chat');
+            if(input.value !== "") {
+                adicionarMensagem("Você", input.value);
+                let botAleatorio = nomes[Math.floor(Math.random() * nomes.length)];
+                
+                // Resposta obrigatória do Bot
+                setTimeout(() => {
+                    let respostas = ["Eu sou inocente!", "Estava dormindo.", "Vi o Caio andando por aí...", "Não sei de nada.", "Sou o Médico!"];
+                    adicionarMensagem(botAleatorio, respostas[Math.floor(Math.random() * respostas.length)]);
+                }, 1000);
+                
+                input.value = "";
+            }
+        }
 
-        // --- Loop Principal ---
-        function update() {
-            // Movimento Jogador
-            player.position.x += moveInput.x * 0.1;
-            player.position.z += moveInput.y * 0.1;
+        function simularTurnoBots() {
+            setInterval(() => {
+                if(jogadoresVivos > 2) {
+                    mortes++;
+                    jogadoresVivos--;
+                    document.getElementById('count-mortes').innerText = mortes;
+                    document.getElementById('count-jogadores').innerText = jogadoresVivos;
+                    
+                    let vitima = nomes.pop();
+                    adicionarMensagem("Sistema", `A noite passou. ${vitima} foi eliminado.`);
 
-            // IA segue o jogador
-            const dist = player.position.distanceTo(ai.position);
-            if(dist > 1.5) {
-                const dir = new THREE.Vector3().subVectors(player.position, ai.position).normalize();
-                ai.position.addScaledVector(dir, 0.05);
-            } else {
-                // IA Ataca se estiver perto
-                if(Math.random() > 0.98) {
-                    playerHp -= 5;
-                    document.getElementById('player-hp').innerText = playerHp;
+                    // Lógica da Bruxa (A cada 2, 4 ou 6 mortes)
+                    if(meuPapel === "Bruxa" && (mortes == 2 || mortes == 4 || mortes == 6)) {
+                        document.getElementById('acoes-bruxa').classList.remove('escondido');
+                        adicionarMensagem("Poder", "Você destrancou uma Poção!");
+                    }
                 }
-            }
-
-            // Jogador Ataca IA
-            if(isAttacking && dist < 2) {
-                aiHp -= 1;
-                document.getElementById('ai-hp').innerText = Math.max(0, aiHp);
-                ai.position.x += (ai.position.x - player.position.x) * 0.5; // Empurrão
-            }
-
-            // Camera segue o jogador suavemente
-            camera.position.lerp(new THREE.Vector3(player.position.x, 10, player.position.z + 10), 0.1);
-            camera.lookAt(player.position);
-
-            if(playerHp <= 0) alert("Você Perdeu!");
-            if(aiHp <= 0) alert("Você Venceu!");
-
-            renderer.render(scene, camera);
-            if(playerHp > 0 && aiHp > 0) requestAnimationFrame(update);
+            }, 10000); // Nova morte a cada 10 segundos para teste
         }
 
-        update();
-
-        // Ajuste de tela
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+        function usarPocao() {
+            const listaPocoes = ["Revelação", "Força", "Manipulação", "Reviver", "+1 Vida"];
+            let p = listaPocoes[Math.floor(Math.random() * listaPocoes.length)];
+            alert("Você usou a poção de: " + p);
+            document.getElementById('acoes-bruxa').classList.add('escondido');
+        }
     </script>
 </body>
 </html>
