@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FNaF: UNSETTLED</title>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Courier New', Courier, monospace; }
+        
+        /* Menu Inicial */
+        #menu-container {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+            background: radial-gradient(circle, #1a1a1a 0%, #000 100%);
+            transition: opacity 1.5s ease;
+        }
+
+        h1 {
+            color: #cc0000;
+            font-size: 3rem;
+            text-shadow: 2px 2px #550000;
+            margin-bottom: 0;
+            letter-spacing: 5px;
+            animation: flicker 2s infinite;
+        }
+
+        p.subtitle { color: #555; margin-top: 5px; font-weight: bold; }
+
+        .btn-jogar {
+            margin-top: 50px;
+            padding: 15px 40px;
+            background: transparent;
+            color: #fff;
+            border: 2px solid #fff;
+            font-size: 1.2rem;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        .btn-jogar:active { background: #fff; color: #000; }
+
+        @keyframes flicker {
+            0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% { opacity: 1; }
+            20%, 22%, 24%, 55% { opacity: 0.3; }
+        }
+
+        /* Canvas do Jogo */
+        #game-canvas { width: 100%; height: 100%; display: block; }
+    </style>
+</head>
+<body>
+
+    <div id="menu-container">
+        <h1>FNaF: UNSETTLED</h1>
+        <p class="subtitle">Michael Afton's Story</p>
+        <button class="btn-jogar" onclick="iniciarJogo()">JOGAR</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+
+    <script>
+        let scene, camera, renderer, door;
+
+        function init3D() {
+            // Cena e Câmera
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // Luz Ambiente (Muito fraca para o clima de terror)
+            const light = new THREE.PointLight(0xffffff, 0.5, 100);
+            light.position.set(0, 5, 5);
+            scene.add(light);
+
+            // Criando uma "Porta" Simples (Um cubo achatado)
+            const geometry = new THREE.BoxGeometry(2, 4, 0.2);
+            const material = new THREE.MeshStandardMaterial({ color: 0x331a00 });
+            door = new THREE.Mesh(geometry, material);
+            door.position.set(0, 0, -5); // Porta na frente da câmera
+            scene.add(door);
+
+            // Chão
+            const floorGeo = new THREE.PlaneGeometry(20, 20);
+            const floorMat = new THREE.MeshStandardMaterial({ color: 0x111111 });
+            const floor = new THREE.Mesh(floorGeo, floorMat);
+            floor.rotation.x = -Math.PI / 2;
+            floor.position.y = -2;
+            scene.add(floor);
+
+            camera.position.z = 2;
+            animate();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            TWEEN.update();
+            renderer.render(scene, camera);
+        }
+
+        function iniciarJogo() {
+            // 1. Esconde o Menu
+            document.getElementById('menu-container').style.opacity = '0';
+            setTimeout(() => {
+                document.getElementById('menu-container').style.display = 'none';
+            }, 1500);
+
+            // 2. Animação da Câmera entrando na porta
+            // Move a câmera em direção à porta
+            new TWEEN.Tween(camera.position)
+                .to({ z: -4.5 }, 3000)
+                .easing(TWEEN.Easing.Quadratic.InOut)
+                .onComplete(() => {
+                    // 3. Animação da Porta Abrindo (Rotação)
+                    new TWEEN.Tween(door.rotation)
+                        .to({ y: -Math.PI / 1.5 }, 1000)
+                        .easing(TWEEN.Easing.Quadratic.Out)
+                        .start();
+                    
+                    // Continua o movimento para "entrar" na sala escura
+                    new TWEEN.Tween(camera.position)
+                        .to({ z: -8 }, 2000)
+                        .delay(500)
+                        .start();
+                })
+                .start();
+        }
+
+        // Ajustar tela se girar o celular
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        init3D();
+    </script>
+</body>
+</html>
