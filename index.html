@@ -3,178 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Noite dos Mistérios</title>
+    <title>Noite dos Mistérios - IA Avançada</title>
     <style>
-        :root {
-            --dark-blue: #0a0e14;
-            --gold: #d4af37;
-            --blood: #880808;
-        }
-        body {
-            background-color: var(--dark-blue);
-            color: white;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #tela-inicial, #tela-jogo {
-            width: 100%;
-            max-width: 500px;
-            height: 100%;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-        }
-        h1 { color: var(--gold); text-shadow: 2px 2px 5px black; }
-        .btn {
-            background: var(--gold);
-            border: none;
-            padding: 15px 30px;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-            margin: 10px;
-        }
-        /* Roleta */
-        #roleta-container { display: none; margin: 20px; }
-        #roleta {
-            width: 200px; height: 200px;
-            border: 5px solid var(--gold);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: transform 3s cubic-bezier(0.1, 0, 0.1, 1);
-            background: conic-gradient(red 0% 16%, blue 16% 32%, green 32% 48%, purple 48% 64%, orange 64% 80%, gray 80% 100%);
-        }
-        /* Chat e Log */
-        #chat {
-            width: 90%; height: 300px;
-            background: rgba(255,255,255,0.1);
-            margin: 10px; padding: 10px;
-            overflow-y: auto; text-align: left;
-            border-radius: 10px; font-size: 14px;
-        }
-        .status-bar { font-size: 12px; color: var(--gold); margin-bottom: 5px; }
-        .escondido { display: none !important; }
+        :root { --dark: #05070a; --gold: #c5a021; --red: #ff4d4d; --gray: #2a2a2a; }
+        body { background: var(--dark); color: white; font-family: sans-serif; display: flex; justify-content: center; margin: 0; }
+        #game-container { width: 100%; max-width: 600px; height: 100vh; display: flex; flex-direction: column; border: 1px solid var(--gold); }
+        
+        /* Cabeçalho */
+        .header { padding: 15px; border-bottom: 1px solid var(--gold); background: #000; text-align: center; }
+        
+        /* Chat */
+        #chat-window { flex-grow: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .msg { padding: 8px 12px; border-radius: 8px; max-width: 85%; font-size: 14px; line-height: 1.4; }
+        .bot { background: var(--gray); align-self: flex-start; border-left: 3px solid var(--gold); }
+        .player { background: #1a3a5a; align-self: flex-end; border-right: 3px solid #3498db; }
+        .system { background: rgba(255,0,0,0.1); align-self: center; color: var(--red); font-weight: bold; width: 90%; text-align: center; }
+
+        /* Controles */
+        .controls { padding: 15px; background: #111; display: flex; gap: 5px; }
+        input { flex-grow: 1; padding: 10px; border-radius: 4px; border: none; }
+        button { padding: 10px; background: var(--gold); border: none; cursor: pointer; font-weight: bold; }
+        
+        .hidden { display: none; }
     </style>
 </head>
 <body>
 
-    <div id="tela-inicial">
-        <h1>Noite dos Mistérios</h1>
-        <p>A cidade dorme... mas quem acordará?</p>
-        <button class="btn" onclick="iniciarSorteio()">INICIAR RODADA</button>
+<div id="game-container">
+    <div class="header">
+        <h2 id="fase-txt">Noite dos Mistérios</h2>
+        <small id="status-txt">Iniciando...</small>
     </div>
 
-    <div id="roleta-container">
-        <h2>Sorteando seu papel...</h2>
-        <div id="roleta">?</div>
-        <h3 id="papel-sorteado"></h3>
-        <button id="btn-comecar-cidade" class="btn escondido" onclick="entrarNaCidade()">ENTRAR NA CIDADE</button>
-    </div>
-
-    <div id="tela-jogo" class="escondido">
-        <div class="status-bar">
-            Jogadores: <span id="count-jogadores">18</span> | 
-            Mortes: <span id="count-mortes">0</span> |
-            Papel: <b id="meu-papel-display"></b>
+    <div id="chat-window">
         </div>
-        <div id="chat"></div>
-        <input type="text" id="input-chat" placeholder="Faça uma pergunta..." style="width: 80%; padding: 10px;">
-        <button class="btn" onclick="enviarMensagem()">Enviar</button>
-        <div id="acoes-bruxa" class="escondido">
-            <button class="btn" style="background:purple" onclick="usarPocao()">Usar Poção Mágica</button>
-        </div>
+
+    <div class="controls">
+        <input type="text" id="input-msg" placeholder="Pergunte algo (ex: Quem é você? ou Onde estava?)">
+        <button onclick="processarTurnoJogador()">Perguntar</button>
     </div>
+</div>
 
-    <script>
-        const nomes = ["Arthur", "Beatriz", "Caio", "Diana", "Erik", "Flora", "Gustavo", "Helena", "Igor", "Julia", "Kevin", "Lara", "Murilo", "Nina", "Otto", "Paula", "Raul"];
-        const papeis = ["Bruxa", "Assassino", "Xerife", "Médico", "Lobisomem", "Cidadão"];
-        let meuPapel = "";
-        let mortes = 0;
-        let jogadoresVivos = 18;
+<script>
+    // Configurações Iniciais
+    const nomes = ["Arthur", "Beatriz", "Caio", "Diana", "Erik", "Flora", "Gustavo", "Helena", "Igor", "Julia", "Kevin", "Lara", "Murilo", "Nina", "Otto", "Paula", "Raul"];
+    let jogadores = [];
+    let logsDoJogo = []; 
+    let rodada = 1;
 
-        function iniciarSorteio() {
-            document.getElementById('tela-inicial').classList.add('escondido');
-            document.getElementById('roleta-container').style.display = 'block';
-            
-            let r = document.getElementById('roleta');
-            r.style.transform = "rotate(1080deg)";
-            
-            setTimeout(() => {
-                meuPapel = papeis[Math.floor(Math.random() * papeis.length)];
-                document.getElementById('papel-sorteado').innerText = "Você é: " + meuPapel;
-                document.getElementById('btn-comecar-cidade').classList.remove('escondido');
-            }, 3000);
-        }
+    // Inicialização do Jogo
+    function init() {
+        // Criar Bots com IA básica
+        nomes.forEach(n => {
+            jogadores.push({
+                nome: n,
+                papel: "Cidadão", // Será distribuído
+                vivo: true,
+                suspeitos: [],
+                memoriaLocal: "Estava em casa dormindo."
+            });
+        });
 
-        function entrarNaCidade() {
-            document.getElementById('roleta-container').classList.add('escondido');
-            document.getElementById('tela-jogo').classList.remove('escondido');
-            document.getElementById('meu-papel-display').innerText = meuPapel;
-            
-            adicionarMensagem("Sistema", "A partida começou com 18 jogadores.");
-            if(meuPapel === "Bruxa") {
-                adicionarMensagem("Mestre", "Bruxa, você quer ser do BEM ou do MAL? (Ação automática simulada)");
+        // Adicionar Jogador Real (Você)
+        jogadores.push({ nome: "Você", papel: "Xerife", vivo: true, suspeitos: [], memoriaLocal: "" });
+
+        distribuirPapeis();
+        adicionarMsg("Sistema", "A noite caiu. 18 jogadores estão na vila. Quem é o assassino?");
+        simularNoite();
+    }
+
+    function distribuirPapeis() {
+        const papeisEspeciais = ["Assassino", "Lobisomem", "Bruxa", "Médico", "Xerife"];
+        papeisEspeciais.forEach(p => {
+            let sortear = Math.floor(Math.random() * (jogadores.length - 1));
+            jogadores[sortear].papel = p;
+        });
+    }
+
+    // A MÁGICA DA INTELIGÊNCIA DOS BOTS
+    function responderPergunta(alvo, pergunta) {
+        const bot = jogadores.find(j => j.nome === alvo && j.vivo);
+        if (!bot) return "Este jogador não pode responder agora.";
+
+        pergunta = pergunta.toLowerCase();
+        
+        // 1. Lógica de "Quem é você?"
+        if (pergunta.includes("quem é você") || pergunta.includes("seu papel")) {
+            if (bot.papel === "Assassino" || bot.papel === "Lobisomem") {
+                return "Eu? Sou apenas um Cidadão tentando sobreviver.";
             }
-            simularTurnoBots();
+            return `Eu sou o ${bot.papel}. Pode confiar em mim.`;
         }
 
-        function adicionarMensagem(autor, texto) {
-            let chat = document.getElementById('chat');
-            chat.innerHTML += `<p><strong>${autor}:</strong> ${texto}</p>`;
-            chat.scrollTop = chat.scrollHeight;
+        // 2. Lógica de "Onde você estava?"
+        if (pergunta.includes("onde") || pergunta.includes("estava")) {
+            if (bot.papel === "Assassino") return "Eu estava na biblioteca lendo. Não vi nada.";
+            return bot.memoriaLocal;
         }
 
-        function enviarMensagem() {
-            let input = document.getElementById('input-chat');
-            if(input.value !== "") {
-                adicionarMensagem("Você", input.value);
-                let botAleatorio = nomes[Math.floor(Math.random() * nomes.length)];
-                
-                // Resposta obrigatória do Bot
-                setTimeout(() => {
-                    let respostas = ["Eu sou inocente!", "Estava dormindo.", "Vi o Caio andando por aí...", "Não sei de nada.", "Sou o Médico!"];
-                    adicionarMensagem(botAleatorio, respostas[Math.floor(Math.random() * respostas.length)]);
-                }, 1000);
-                
-                input.value = "";
+        // 3. Lógica de "Quem é o culpado?"
+        if (pergunta.includes("culpado") || pergunta.includes("assassino") || pergunta.includes("quem foi")) {
+            let suspeito = jogadores.filter(j => j.vivo && j.nome !== bot.nome)[Math.floor(Math.random() * 5)].nome;
+            return `Acho que o ${suspeito} está agindo de forma muito estranha hoje...`;
+        }
+
+        return "Não entendi sua pergunta, mas garanto que sou inocente.";
+    }
+
+    function processarTurnoJogador() {
+        const input = document.getElementById('input-msg');
+        const texto = input.value;
+        if (!texto) return;
+
+        adicionarMsg("player", texto);
+        
+        // Detectar se o jogador marcou alguém (ex: @Arthur) ou se é uma pergunta geral
+        let botAlvo = nomes.find(n => texto.includes(n));
+        
+        setTimeout(() => {
+            if (botAlvo) {
+                const resposta = responderPergunta(botAlvo, texto);
+                adicionarMsg("bot", `${botAlvo}: ${resposta}`);
+            } else {
+                adicionarMsg("bot", "Vila: (Silêncio...) Tente perguntar para alguém específico (ex: Arthur, quem é você?)");
             }
-        }
+        }, 800);
 
-        function simularTurnoBots() {
-            setInterval(() => {
-                if(jogadoresVivos > 2) {
-                    mortes++;
-                    jogadoresVivos--;
-                    document.getElementById('count-mortes').innerText = mortes;
-                    document.getElementById('count-jogadores').innerText = jogadoresVivos;
-                    
-                    let vitima = nomes.pop();
-                    adicionarMensagem("Sistema", `A noite passou. ${vitima} foi eliminado.`);
+        input.value = "";
+    }
 
-                    // Lógica da Bruxa (A cada 2, 4 ou 6 mortes)
-                    if(meuPapel === "Bruxa" && (mortes == 2 || mortes == 4 || mortes == 6)) {
-                        document.getElementById('acoes-bruxa').classList.remove('escondido');
-                        adicionarMensagem("Poder", "Você destrancou uma Poção!");
-                    }
-                }
-            }, 10000); // Nova morte a cada 10 segundos para teste
-        }
+    function simularNoite() {
+        document.getElementById('status-txt').innerText = "Fase: Noite";
+        setTimeout(() => {
+            // Um bot morre aleatoriamente (IA simulando o assassino)
+            let vivos = jogadores.filter(j => j.vivo && j.nome !== "Você");
+            let vitima = vivos[Math.floor(Math.random() * vivos.length)];
+            vitima.vivo = false;
 
-        function usarPocao() {
-            const listaPocoes = ["Revelação", "Força", "Manipulação", "Reviver", "+1 Vida"];
-            let p = listaPocoes[Math.floor(Math.random() * listaPocoes.length)];
-            alert("Você usou a poção de: " + p);
-            document.getElementById('acoes-bruxa').classList.add('escondido');
-        }
-    </script>
+            adicionarMsg("system", `O DIA AMANHECEU. ${vitima.nome} foi encontrado morto!`);
+            document.getElementById('status-txt').innerText = "Fase: Discussão (Pergunte aos bots)";
+            
+            // Atualiza memória dos bots sobre a morte
+            jogadores.forEach(j => {
+                if(j.vivo) j.memoriaLocal = `Eu ouvi barulhos perto da casa do ${vitima.nome}, mas fiquei com medo de sair.`;
+            });
+        }, 3000);
+    }
+
+    function adicionarMsg(tipo, texto) {
+        const win = document.getElementById('chat-window');
+        const div = document.createElement('div');
+        div.className = `msg ${tipo}`;
+        div.innerText = texto;
+        win.appendChild(div);
+        win.scrollTop = win.scrollHeight;
+    }
+
+    window.onload = init;
+</script>
 </body>
 </html>
