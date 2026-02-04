@@ -3,149 +3,175 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>FNaF: UNSETTLED</title>
+    <title>Arena PVP 3D - Mobile</title>
     <style>
-        body { margin: 0; overflow: hidden; background-color: #000; font-family: 'Segoe UI', sans-serif; }
+        body { margin: 0; overflow: hidden; background: #111; font-family: sans-serif; }
+        canvas { display: block; }
         
-        /* Overlay de Transição e Título */
-        #black-screen {
-            position: absolute; width: 100%; height: 100%; background: #000;
-            display: none; justify-content: center; align-items: center; z-index: 100; opacity: 0;
-            transition: opacity 2s ease;
+        /* Interface Mobile */
+        #ui {
+            position: absolute; top: 10px; left: 10px; color: white;
+            pointer-events: none; text-shadow: 2px 2px 4px #000;
         }
-        #game-title-intro { color: #cc0000; font-size: 2.5rem; letter-spacing: 10px; display: none; }
-
-        /* Menu Inicial */
-        #menu-container {
-            position: absolute; width: 100%; height: 100%; display: flex;
-            flex-direction: column; justify-content: center; align-items: center;
-            z-index: 10; background: #000;
+        #joystick-container {
+            position: absolute; bottom: 40px; left: 40px;
+            width: 120px; height: 120px; background: rgba(255,255,255,0.2);
+            border-radius: 50%; touch-action: none;
         }
-        h1 { color: #fff; font-size: 2rem; letter-spacing: 5px; animation: flicker 3s infinite; }
-        .btn-jogar { padding: 15px 40px; background: none; color: #fff; border: 1px solid #444; cursor: pointer; }
-
-        @keyframes flicker { 0%, 18%, 22%, 100% { opacity: 1; } 20% { opacity: 0.2; } }
+        #joystick-knob {
+            position: absolute; top: 35px; left: 35px;
+            width: 50px; height: 50px; background: #fff; border-radius: 50%;
+        }
+        #attack-btn {
+            position: absolute; bottom: 50px; right: 40px;
+            width: 80px; height: 80px; background: rgba(255,0,0,0.6);
+            border-radius: 50%; display: flex; align-items: center;
+            justify-content: center; color: white; font-weight: bold;
+            user-select: none; -webkit-tap-highlight-color: transparent;
+        }
     </style>
 </head>
 <body>
 
-    <div id="black-screen">
-        <h1 id="game-title-intro">FNaF: UNSETTLED</h1>
+    <div id="ui">
+        <div>Sua Vida: <span id="player-hp">100</span></div>
+        <div>Inimigo: <span id="ai-hp">100</span></div>
     </div>
 
-    <div id="menu-container">
-        <h1>FNaF: UNSETTLED</h1>
-        <button class="btn-jogar" onclick="iniciarJogo()">ENTRAR NO TURNO</button>
+    <div id="joystick-container">
+        <div id="joystick-knob"></div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/tween.js/18.6.4/tween.umd.js"></script>
+    <div id="attack-btn">ATACAR</div>
 
-    <script>
-        let scene, camera, renderer, door, arm, room;
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js" } }
+    </script>
 
-        function init3D() {
-            scene = new THREE.Scene();
-            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            renderer = new THREE.WebGLRenderer({ antialias: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+    <script type="module">
+        import * as THREE from 'three';
 
-            // Luz Inicial
-            const light = new THREE.PointLight(0xffffff, 1, 10);
-            light.position.set(0, 2, 0);
-            scene.add(light);
+        // --- Configuração Básica ---
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0x222222);
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
 
-            // PORTA E BRAÇO (Igual ao anterior)
-            const doorGroup = new THREE.Group();
-            const doorMesh = new THREE.Mesh(new THREE.BoxGeometry(2.2, 4, 0.1), new THREE.MeshStandardMaterial({ color: 0x1a0a00 }));
-            doorMesh.position.set(1.1, 0, 0);
-            doorGroup.add(doorMesh);
-            doorGroup.position.set(-1.1, 0, -3);
-            scene.add(doorGroup);
-            window.doorGroup = doorGroup;
+        // Luzes
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(5, 10, 7.5);
+        scene.add(light);
+        scene.add(new THREE.AmbientLight(0x404040));
 
-            const armMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.15, 1.2), new THREE.MeshStandardMaterial({ color: 0x222222 }));
-            armMesh.rotation.x = Math.PI/2.5; armMesh.position.set(0.6, -1.5, 1);
-            scene.add(armMesh);
-            window.arm = armMesh;
+        // Chão
+        const grid = new THREE.GridHelper(20, 20);
+        scene.add(grid);
 
-            camera.position.z = 2;
-            animate();
+        // --- Personagens ---
+        function createBox(color) {
+            const geo = new THREE.BoxGeometry(1, 1, 1);
+            const mat = new THREE.MeshStandardMaterial({ color });
+            return new THREE.Mesh(geo, mat);
         }
 
-        function criarSalaPrincipal() {
-            // Criando o "Salão Principal" em 3D
-            const roomGroup = new THREE.Group();
+        const player = createBox(0x00aaff);
+        player.position.y = 0.5;
+        scene.add(player);
+
+        const ai = createBox(0xff3300);
+        ai.position.set(5, 0.5, 5);
+        scene.add(ai);
+
+        camera.position.set(0, 10, 10);
+        camera.lookAt(player.position);
+
+        // --- Lógica de Jogo ---
+        let playerHp = 100, aiHp = 100;
+        let moveInput = { x: 0, y: 0 };
+        let isAttacking = false;
+
+        // --- Controles Mobile (Joystick) ---
+        const knob = document.getElementById('joystick-knob');
+        const container = document.getElementById('joystick-container');
+        
+        container.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            const rect = container.getBoundingClientRect();
+            const centerX = rect.left + rect.width / 2;
+            const centerY = rect.top + rect.height / 2;
             
-            // Chão de Xadrez (Textura gerada por código)
-            const floorGeo = new THREE.PlaneGeometry(20, 30);
-            const floorMat = new THREE.MeshStandardMaterial({ color: 0xffffff, side: THREE.DoubleSide });
-            const floor = new THREE.Mesh(floorGeo, floorMat);
-            floor.rotation.x = Math.PI / 2;
-            floor.position.y = -2;
-            roomGroup.add(floor);
-
-            // Paredes Sujas
-            const wallMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-            const backWall = new THREE.Mesh(new THREE.PlaneGeometry(20, 10), wallMat);
-            backWall.position.set(0, 3, -15);
-            roomGroup.add(backWall);
-
-            // Luzes de Neon piscando no teto
-            const neon = new THREE.PointLight(0x660000, 0.5, 15);
-            neon.position.set(0, 4, -5);
-            roomGroup.add(neon);
-
-            roomGroup.position.z = -20; // Fica escondida até a transição
-            scene.add(roomGroup);
-            window.mainRoom = roomGroup;
-        }
-
-        function iniciarJogo() {
-            document.getElementById('menu-container').style.display = 'none';
-
-            // Animação de Entrada
-            new TWEEN.Tween(window.arm.position).to({ y: -0.2, z: -2.5 }, 1000).start();
+            let dx = touch.clientX - centerX;
+            let dy = touch.clientY - centerY;
+            const dist = Math.min(Math.sqrt(dx*dx + dy*dy), 50);
+            const angle = Math.atan2(dy, dx);
             
-            setTimeout(() => {
-                new TWEEN.Tween(window.doorGroup.rotation).to({ y: -Math.PI / 2 }, 1500).start();
-                new TWEEN.Tween(camera.position).to({ z: -8 }, 3000).onComplete(transicaoPreta).start();
-            }, 1000);
-        }
-
-        function transicaoPreta() {
-            const black = document.getElementById('black-screen');
-            const title = document.getElementById('game-title-intro');
+            knob.style.transform = `translate(${Math.cos(angle)*dist}px, ${Math.sin(angle)*dist}px)`;
             
-            black.style.display = 'flex';
-            setTimeout(() => black.style.opacity = '1', 10);
+            moveInput.x = (Math.cos(angle) * dist) / 50;
+            moveInput.y = (Math.sin(angle) * dist) / 50;
+        });
 
-            setTimeout(() => {
-                title.style.display = 'block';
-                // Remove a porta velha e coloca o Michael na sala nova
-                scene.remove(window.doorGroup);
-                window.mainRoom.position.z = 0; 
-                camera.position.set(0, 0, 5);
-            }, 2000);
+        container.addEventListener('touchend', () => {
+            knob.style.transform = `translate(0,0)`;
+            moveInput = { x: 0, y: 0 };
+        });
 
-            setTimeout(() => {
-                title.style.opacity = '0';
-                setTimeout(() => {
-                    black.style.opacity = '0';
-                    setTimeout(() => black.style.display = 'none', 2000);
-                }, 1000);
-            }, 5000);
-        }
+        document.getElementById('attack-btn').addEventListener('touchstart', () => {
+            isAttacking = true;
+            player.scale.set(1.2, 1.2, 1.2); // Feedback visual
+            setTimeout(() => { 
+                isAttacking = false; 
+                player.scale.set(1,1,1);
+            }, 200);
+        });
 
-        function animate() {
-            requestAnimationFrame(animate);
-            TWEEN.update();
+        // --- Loop Principal ---
+        function update() {
+            // Movimento Jogador
+            player.position.x += moveInput.x * 0.1;
+            player.position.z += moveInput.y * 0.1;
+
+            // IA segue o jogador
+            const dist = player.position.distanceTo(ai.position);
+            if(dist > 1.5) {
+                const dir = new THREE.Vector3().subVectors(player.position, ai.position).normalize();
+                ai.position.addScaledVector(dir, 0.05);
+            } else {
+                // IA Ataca se estiver perto
+                if(Math.random() > 0.98) {
+                    playerHp -= 5;
+                    document.getElementById('player-hp').innerText = playerHp;
+                }
+            }
+
+            // Jogador Ataca IA
+            if(isAttacking && dist < 2) {
+                aiHp -= 1;
+                document.getElementById('ai-hp').innerText = Math.max(0, aiHp);
+                ai.position.x += (ai.position.x - player.position.x) * 0.5; // Empurrão
+            }
+
+            // Camera segue o jogador suavemente
+            camera.position.lerp(new THREE.Vector3(player.position.x, 10, player.position.z + 10), 0.1);
+            camera.lookAt(player.position);
+
+            if(playerHp <= 0) alert("Você Perdeu!");
+            if(aiHp <= 0) alert("Você Venceu!");
+
             renderer.render(scene, camera);
+            if(playerHp > 0 && aiHp > 0) requestAnimationFrame(update);
         }
 
-        init3D();
-        criarSalaPrincipal();
+        update();
+
+        // Ajuste de tela
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
